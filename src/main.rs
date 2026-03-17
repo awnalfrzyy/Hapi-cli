@@ -29,11 +29,6 @@ async fn main() {
 
     if raw_args.len() == 1 {
         print_logo();
-        println!(
-            "{} {}",
-            "{} http-req <METHOD> <URL> [OPTIONS]",
-            "Usage:".yellow(),
-        );
         println!("Run {} for more details.\n", "--help".green());
         return;
     }
