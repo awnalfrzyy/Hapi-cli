@@ -1,26 +1,15 @@
-mod cli;
-mod http;
-
-use clap::Parser;
-use cli::Cli;
+use clap::{CommandFactory, Parser};
 use colored::*;
 use std::collections::HashMap;
 use std::env;
 use std::time::Instant;
 
-const LOGO: &str = r#"
-       __    __   __                       
-      / /_  / /_ / /_ ____   -  ____  ___   ____ _ 
-     / __ \/ __// __// __ \ / / / __ \/ _ \ / __ `/ 
-    / / / / /_ / /_ / /_/ // / / /_/ /  __// /_/ /  
-   /_/ /_/\__/ \__/ / .___//_/ \____/\___/ \__, /   
-                   /_/    BUILD BY DIGGIE /____/    
-"#;
+use tooling::assets;
+use tooling::cmd::args::Cli;
+use tooling::core;
 
 fn print_logo() {
-    println!("{}", LOGO.cyan().bold());
-    println!("{} Minimalist CLI HTTP Client", "v0.1.0".yellow());
-    println!("--------------------------------------------------");
+    println!("{}", assets::logo::LOGO.cyan().bold());
 }
 
 #[tokio::main]
@@ -29,28 +18,32 @@ async fn main() {
 
     if raw_args.len() == 1 {
         print_logo();
-        println!("Run {} for more details.\n", "--help".green());
+        let _ = Cli::command().print_help();
+        println!("\n");
         return;
     }
 
     let args = Cli::parse();
-    let client = http::request::build_client();
+    let client = core::request::build_client();
 
-    let mut headers_map = HashMap::new();
+    let mut headers_map: HashMap<String, String> = HashMap::new();
     for h in args.headers {
         if let Some((k, v)) = h.split_once(':') {
             headers_map.insert(k.trim().to_string(), v.trim().to_string());
         }
     }
 
-    let mut queries_map = HashMap::new();
+    let auth_value = args.auth_value.clone().or(args.bearer.clone());
+    core::authorization::auth(&mut headers_map, args.auth.clone(), auth_value);
+
+    let mut queries_map: HashMap<String, String> = HashMap::new();
     for q in args.queries {
         if let Some((k, v)) = q.split_once('=') {
             queries_map.insert(k.trim().to_string(), v.trim().to_string());
         }
     }
 
-    let rb = http::request::create_request(
+    let rb = core::request::create_request(
         &client,
         &args.method,
         &args.url,
@@ -68,21 +61,38 @@ async fn main() {
                 args.url.underline()
             );
 
+            let spinner = assets::loading::create_spinner("Mengirim request...");
             let start = Instant::now();
 
             match req.send().await {
                 Ok(res) => {
+                    spinner.finish_with_message("Request selesai");
                     let duration = start.elapsed();
 
-                    if let Err(e) = http::response::print_response(res).await {
+                    if let Err(e) = core::response::print_response(res).await {
                         eprintln!("{} {}", "Error printing response:".red(), e);
                     }
 
                     println!("\n{} {:?}", "⚡ Time Elapsed:".bold().blue(), duration);
                 }
-                Err(e) => eprintln!("{} {}", "Request failed:".red(), e),
+                Err(e) => {
+                    spinner.finish_and_clear();
+                    assets::invalid::print_error("no_connection");
+                    eprintln!("{} {}", "Request failed:".red(), e);
+                }
             }
         }
-        Err(e) => eprintln!("{} {}", "Configuration error:".red(), e),
+        Err(e) => {
+            if e.contains("URL tidak valid") {
+                assets::invalid::print_error("url");
+            } else if e.contains("Body bukan JSON valid") {
+                assets::invalid::print_error("body");
+            } else if e.contains("nggak dikenal") {
+                assets::invalid::print_error("header");
+            } else {
+                assets::invalid::print_error("unknown");
+            }
+            eprintln!("{} {}", "Configuration error:".red(), e);
+        }
     }
 }

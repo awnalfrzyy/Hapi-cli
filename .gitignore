@@ -1,1 +1,6 @@
 /target
+/coverage
+flamegraph.svg
+prefix-*.log
+pref.data
+pref.data.old
