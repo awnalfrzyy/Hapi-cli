@@ -31,8 +31,8 @@ async fn main() {
         print_logo();
         println!(
             "{} {}",
+            "{} http-req <METHOD> <URL> [OPTIONS]",
             "Usage:".yellow(),
-            "http-req <METHOD> <URL> [OPTIONS]"
         );
         println!("Run {} for more details.\n", "--help".green());
         return;
