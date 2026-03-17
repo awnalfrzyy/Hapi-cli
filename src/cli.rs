@@ -1,7 +1,11 @@
 use clap::Parser;
 
 #[derive(Parser)]
-#[command(name = "awin-req", version = "1.0", about = "Simple & Fast HTTP Client")]
+#[command(
+    name = "awin-req",
+    version = "1.0",
+    about = "Simple & Fast HTTP Client"
+)]
 pub struct Cli {
     pub method: String,
     pub url: String,

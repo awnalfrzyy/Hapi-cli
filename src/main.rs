@@ -1,10 +1,10 @@
-mod http;
 mod cli;
+mod http;
 
 use clap::Parser;
 use cli::Cli;
-use std::collections::HashMap;
 use colored::*;
+use std::collections::HashMap;
 use std::env;
 use std::time::Instant;
 
@@ -29,7 +29,11 @@ async fn main() {
 
     if raw_args.len() == 1 {
         print_logo();
-        println!("{} {}", "Usage:".yellow(), "http-req <METHOD> <URL> [OPTIONS]");
+        println!(
+            "{} {}",
+            "Usage:".yellow(),
+            "http-req <METHOD> <URL> [OPTIONS]"
+        );
         println!("Run {} for more details.\n", "--help".green());
         return;
     }
@@ -52,28 +56,38 @@ async fn main() {
     }
 
     let rb = http::request::create_request(
-        &client, &args.method, &args.url, args.body, headers_map, queries_map
+        &client,
+        &args.method,
+        &args.url,
+        args.body,
+        headers_map,
+        queries_map,
     );
 
     match rb {
         Ok(req) => {
-            println!("{} {} sending request to {}...", "🚀".cyan(), args.method.to_uppercase().bold(), args.url.underline());
-            
+            println!(
+                "{} {} sending request to {}...",
+                "🚀".cyan(),
+                args.method.to_uppercase().bold(),
+                args.url.underline()
+            );
+
             let start = Instant::now();
 
             match req.send().await {
                 Ok(res) => {
                     let duration = start.elapsed();
-                    
+
                     if let Err(e) = http::response::print_response(res).await {
                         eprintln!("{} {}", "Error printing response:".red(), e);
                     }
-                    
+
                     println!("\n{} {:?}", "⚡ Time Elapsed:".bold().blue(), duration);
-                },
+                }
                 Err(e) => eprintln!("{} {}", "Request failed:".red(), e),
             }
-        },
+        }
         Err(e) => eprintln!("{} {}", "Configuration error:".red(), e),
     }
 }
