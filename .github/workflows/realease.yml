@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build for ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: awin-req-linux
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: awin-req-windows.exe
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: awin-req-macos
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
+
+      - name: Build Release
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: |
+            target/${{ matrix.target }}/release/http-req
+            target/${{ matrix.target }}/release/http-req.exe
+          if-no-files-found: error
+
+  publish:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-binaries
+          merge-multiple: true
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-binaries/*
+          name: Release ${{ github.ref_name }}
+          body: |
+            ${{ github.ref_name }}
+          draft: false
+          prerelease: false
